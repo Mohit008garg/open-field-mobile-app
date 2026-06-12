@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Open Field",
+    "slug": "open-field",
+    "scheme": "openfield",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFF8F0",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B00"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.openfield.app"
+    },
+    "android": {
+      "package": "in.openfield.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B00"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
