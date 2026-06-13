@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Avatar } from '@/components/ui/Avatar';
+import { Avatar } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import type { Connection } from '@/types';
 

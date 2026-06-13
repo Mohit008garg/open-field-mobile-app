@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SectionHeader } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, radius, spacing } from '@/theme';
 import type { IconName } from '@/types';
 

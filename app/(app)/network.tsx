@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Avatar } from '@/components/ui/Avatar';
+import { Avatar } from '@mohit008garg/open-field-common-components';
 import { connections } from '@/constants/mockData';
 import { colors, fontSize, radius, spacing } from '@/theme';
 

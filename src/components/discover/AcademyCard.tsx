@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, spacing } from '@/theme';
 import type { Academy } from '@/types';
 

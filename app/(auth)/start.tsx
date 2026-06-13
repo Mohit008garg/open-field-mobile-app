@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Logo } from '@/components/ui/Logo';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { Logo } from '@mohit008garg/open-field-common-components';
+import { PrimaryButton } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export default function StartScreen() {
