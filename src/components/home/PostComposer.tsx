@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { Avatar } from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { Avatar } from '@mohit008garg/open-field-common-components';
+import { Card } from '@mohit008garg/open-field-common-components';
+import { PrimaryButton } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, spacing } from '@/theme';
 import type { IconName } from '@/types';
 

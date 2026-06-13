@@ -9,11 +9,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Avatar } from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Avatar } from '@mohit008garg/open-field-common-components';
+import { Card } from '@mohit008garg/open-field-common-components';
+import { Chip } from '@mohit008garg/open-field-common-components';
+import { PrimaryButton } from '@mohit008garg/open-field-common-components';
+import { SectionHeader } from '@mohit008garg/open-field-common-components';
 import { academies, recommendedPlayers } from '@/constants/mockData';
 import { colors, fontSize, radius, spacing } from '@/theme';
 

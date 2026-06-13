@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize } from '@/theme';
 import type { IconName } from '@/types';
 

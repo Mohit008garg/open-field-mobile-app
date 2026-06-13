@@ -1,5 +1,5 @@
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { PrimaryButton } from '@mohit008garg/open-field-common-components';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 type Props = {
