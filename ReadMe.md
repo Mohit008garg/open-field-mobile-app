@@ -26,12 +26,22 @@ Pre-login (`app/(auth)/`):
 | Route | Screen |
 |---|---|
 | `/start` | Landing — hero + "Get Started" / "Log In" |
-| `/login` | Email/password + social buttons + **"Skip & explore the app"** |
+| `/login` | **Google sign-in** (+ dev "Skip & explore the app") |
 
-> ⚠️ There is no auth backend yet (OTP/login needs a third-party provider). For
-> now **Log In**, the social buttons, and **Skip & explore the app** all drop you
-> straight into the protected app via `router.replace('/home')`. Wire real auth
-> in [`app/(auth)/login.tsx`](app/(auth)/login.tsx) when the provider is ready.
+### Authentication — Google only (for now)
+
+SMS OTP isn't purchased yet, so sign-in is **Google only** via Expo AuthSession
+([`src/hooks/useGoogleAuth.ts`](src/hooks/useGoogleAuth.ts)). To enable it:
+
+1. `cp .env.example .env`
+2. Create Google OAuth client IDs (Google Cloud Console) and fill in
+   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` / `_ANDROID_CLIENT_ID` / `_IOS_CLIENT_ID`.
+   See https://docs.expo.dev/guides/google-authentication/
+
+Until the IDs are set, the Google button shows a "not configured" alert. A
+**dev "Skip"** link still enters the app, and the backend exchange
+(Google identity → app session) is a `TODO` in `login.tsx` once that endpoint
+exists. Phone (OTP) sign-in will be added later.
 
 Post-login tab app (`app/(app)/`), bottom tabs **Home · Discover · Network · Jobs · Profile**:
 
