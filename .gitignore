@@ -27,7 +27,12 @@ yarn-error.*
 .DS_Store
 
 # Env
+.env
 .env*.local
 
 # Typescript
 *.tsbuildinfo
+
+# Native build artifacts (Continuous Native Generation)
+/android
+/ios
