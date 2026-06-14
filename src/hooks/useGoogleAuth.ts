@@ -11,6 +11,12 @@ export type GoogleUser = {
   picture?: string;
 };
 
+/** Profile plus the ID token to hand to the backend for an app session. */
+export type GoogleCredential = {
+  user: GoogleUser;
+  idToken: string;
+};
+
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 // webClientId is required so Google returns an ID token we can hand to the
@@ -23,7 +29,7 @@ GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
  * Uses the OS account picker — no browser/redirect URI. Requires a dev or
  * standalone build (not Expo Go).
  */
-export function useGoogleAuth(onSignedIn: (user: GoogleUser) => void) {
+export function useGoogleAuth(onSignedIn: (credential: GoogleCredential) => void | Promise<void>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,21 +42,31 @@ export function useGoogleAuth(onSignedIn: (user: GoogleUser) => void) {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const result = await GoogleSignin.signIn();
 
-      // v13 returns { type, data: { user } }; older returns { user } directly.
+      // v13 returns { type, data: { user, idToken } }; older returns these at
+      // the top level.
       const anyResult = result as unknown as {
-        data?: { user?: GoogleUser & { photo?: string } };
+        data?: { user?: GoogleUser & { photo?: string }; idToken?: string };
         user?: GoogleUser & { photo?: string };
+        idToken?: string;
       };
       const u = anyResult.data?.user ?? anyResult.user;
+      const idToken = anyResult.data?.idToken ?? anyResult.idToken;
       if (!u) {
         setError('Google did not return a profile.');
         return;
       }
-      onSignedIn({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        picture: (u as { photo?: string }).photo ?? u.picture,
+      if (!idToken) {
+        setError('Google did not return an ID token.');
+        return;
+      }
+      await onSignedIn({
+        user: {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          picture: (u as { photo?: string }).photo ?? u.picture,
+        },
+        idToken,
       });
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
