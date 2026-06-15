@@ -9,6 +9,23 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   auth?: boolean;
 }
 
+/**
+ * The backend wraps every success response in `{ success: true, data: ... }`
+ * (ResponseTransformInterceptor). Unwrap it so callers get the payload directly.
+ */
+function unwrap<T>(body: unknown): T {
+  if (
+    body &&
+    typeof body === 'object' &&
+    'success' in body &&
+    (body as { success: unknown }).success === true &&
+    'data' in body
+  ) {
+    return (body as { data: T }).data;
+  }
+  return body as T;
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let message = `Request failed (${res.status})`;
   let code: string | undefined;
@@ -50,7 +67,7 @@ async function tryRefresh(): Promise<string | null> {
     return null;
   }
 
-  const next = (await res.json()) as { accessToken: string; refreshToken: string };
+  const next = unwrap<{ accessToken: string; refreshToken: string }>(await res.json());
   await saveTokens(next);
   return next.accessToken;
 }
@@ -77,5 +94,5 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (!res.ok) throw await parseError(res);
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  return unwrap<T>(await res.json());
 }
