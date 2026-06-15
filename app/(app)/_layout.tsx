@@ -50,6 +50,7 @@ export default function AppLayout() {
       {/* Reachable but hidden from the tab bar */}
       <Tabs.Screen name="messages" options={{ href: null }} />
       <Tabs.Screen name="events" options={{ href: null }} />
+      <Tabs.Screen name="menu" options={{ href: null }} />
     </Tabs>
   );
 }

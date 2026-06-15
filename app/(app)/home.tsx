@@ -34,7 +34,9 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Top bar */}
       <View style={styles.topbar}>
-        <Ionicons name="menu" size={26} color={colors.text} />
+        <Pressable onPress={() => router.push('/menu')} hitSlop={8}>
+          <Ionicons name="menu" size={26} color={colors.text} />
+        </Pressable>
         <Logo size={26} />
         <View style={styles.topRight}>
           <Pressable onPress={() => router.push('/messages')} hitSlop={8}>
