@@ -1,8 +1,9 @@
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar, Icon, type IconName } from '@mohit008garg/open-field-common-components';
 import { useAuth } from '@/context/AuthContext';
+import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 type Item = { icon: IconName; label: string; tint: string; color: string; onPress: () => void };
@@ -10,6 +11,10 @@ type Item = { icon: IconName; label: string; tint: string; color: string; onPres
 export default function MenuScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { profile } = useProfile();
+
+  const displayName = profile?.fullName ?? user?.name ?? null;
+  const displaySub = user?.email ?? user?.phone ?? profile?.email ?? null;
 
   const groups: { title: string; items: Item[] }[] = [
     {
@@ -17,7 +22,7 @@ export default function MenuScreen() {
       items: [
         { icon: 'person-outline', label: 'My Profile', tint: '#DCFCE7', color: '#16A34A', onPress: () => router.push('/profile') },
         { icon: 'create-outline', label: 'Edit profile & sports', tint: '#DBEAFE', color: '#2563EB', onPress: () => router.push('/onboarding') },
-        { icon: 'medal-outline', label: 'Achievements', tint: '#FFEDD5', color: '#EA580C', onPress: () => router.push('/profile') },
+        { icon: 'medal-outline', label: 'Achievements', tint: '#FFEDD5', color: '#EA580C', onPress: () => router.push('/profile?tab=Achievements') },
       ],
     },
     {
@@ -31,9 +36,9 @@ export default function MenuScreen() {
     {
       title: 'Settings',
       items: [
-        { icon: 'settings-outline', label: 'Settings', tint: '#F1F5F9', color: '#475569', onPress: () => undefined },
-        { icon: 'shield-checkmark-outline', label: 'Privacy', tint: '#F1F5F9', color: '#475569', onPress: () => undefined },
-        { icon: 'help-circle-outline', label: 'Help & support', tint: '#F1F5F9', color: '#475569', onPress: () => undefined },
+        { icon: 'settings-outline', label: 'Settings', tint: '#F1F5F9', color: '#475569', onPress: () => router.push('/settings' as Href) },
+        { icon: 'shield-checkmark-outline', label: 'Privacy', tint: '#F1F5F9', color: '#475569', onPress: () => router.push('/privacy' as Href) },
+        { icon: 'help-circle-outline', label: 'Help & support', tint: '#F1F5F9', color: '#475569', onPress: () => router.push('/help' as Href) },
       ],
     },
   ];
@@ -54,11 +59,11 @@ export default function MenuScreen() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
-          <Avatar name={user?.name ?? user?.email ?? 'OpenField'} size={52} />
+          <Avatar name={displayName ?? displaySub ?? 'OpenField'} size={52} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{user?.name ?? 'Your profile'}</Text>
+            <Text style={styles.name}>{displayName ?? 'Your profile'}</Text>
             <Text style={styles.sub} numberOfLines={1}>
-              {user?.email ?? user?.phone ?? 'Tap to complete your profile'}
+              {displaySub ?? 'Tap to complete your profile'}
             </Text>
           </View>
           <Pressable onPress={() => router.push('/profile')} hitSlop={8}>

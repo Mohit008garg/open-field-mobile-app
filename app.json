@@ -6,10 +6,10 @@
     "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#FFF8F0",
+    "backgroundColor": "#FFFFFF",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B00"
+      "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -20,8 +20,9 @@
     },
     "android": {
       "package": "in.openfield.app",
+      "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": {
-        "backgroundColor": "#FF6B00"
+        "backgroundColor": "#16A34A"
       }
     },
     "web": {
@@ -31,7 +32,14 @@
     "plugins": [
       "expo-router",
       "@react-native-google-signin/google-signin",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow OpenField to use your location to show nearby academies, trials and events."
+        }
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

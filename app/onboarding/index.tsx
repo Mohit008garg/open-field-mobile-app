@@ -13,13 +13,16 @@ import {
 import {
   completeOnboarding,
   getDistricts,
+  getMyProfile,
   getSportAttributes,
   getSports,
   saveOnboardingStep,
+  setMySkills,
   type DistrictRef,
   type Sport,
   type SportAttributeDefinition,
 } from '@/api';
+import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 const TOTAL = 3;
@@ -28,12 +31,19 @@ const GENDERS = [
   { value: 'FEMALE', label: 'Female' },
   { value: 'OTHER', label: 'Other' },
 ];
+const PLAYING_LEVELS = ['District', 'State', 'National', 'International', 'Club'].map((v) => ({
+  value: v,
+  label: v,
+}));
+const FOOT_OPTIONS = ['Right', 'Left', 'Both'].map((v) => ({ value: v, label: v }));
+const DEFAULT_SKILLS = ['Speed', 'Stamina', 'Strength', 'Agility', 'Technique', 'Discipline'];
 const currentYear = new Date().getFullYear();
 
 type AttrValues = Record<string, Record<string, unknown>>; // sportId -> key -> value
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { refresh } = useProfile();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +58,27 @@ export default function OnboardingScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
   const [district, setDistrict] = useState('');
+  const [bio, setBio] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [heightCm, setHeightCm] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+  const [playingLevel, setPlayingLevel] = useState('');
+  const [preferredFoot, setPreferredFoot] = useState('');
+  const [jerseyNumber, setJerseyNumber] = useState('');
+  const [currentTeam, setCurrentTeam] = useState('');
+  const [school, setSchool] = useState('');
+
+  // Skills (rating 0–100), edited in step 3. Defaults so the editor is usable
+  // even before the backend has seeded a skill set.
+  const [skills, setSkills] = useState<{ label: string; rating: string }[]>(
+    DEFAULT_SKILLS.map((label) => ({ label, rating: '50' })),
+  );
 
   // Step 2
   const [selected, setSelected] = useState<string[]>([]);
   const [attrValues, setAttrValues] = useState<AttrValues>({});
+  const [primarySportId, setPrimarySportId] = useState<string>('');
+  const [sportAcademies, setSportAcademies] = useState<Record<string, string>>({});
 
   // Step 3
   const [yearsOfTraining, setYearsOfTraining] = useState('');
@@ -63,13 +90,80 @@ export default function OnboardingScreen() {
     getDistricts().then(setDistricts).catch(() => undefined);
   }, []);
 
+  // Prefill with the existing profile so re-opening "Edit profile" shows saved
+  // values. New users (no profile yet → 404) just start with empty fields.
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await getMyProfile();
+        setFullName(p.fullName ?? '');
+        setDateOfBirth(p.dateOfBirth ? p.dateOfBirth.slice(0, 10) : '');
+        setGender(p.gender ?? '');
+        setDistrict(p.district ?? '');
+        setBio(p.bio ?? '');
+        setCoverUrl(p.coverUrl ?? '');
+        setHeightCm(p.heightCm != null ? String(p.heightCm) : '');
+        setWeightKg(p.weightKg != null ? String(p.weightKg) : '');
+        setPlayingLevel(p.playingLevel ?? '');
+        setPreferredFoot(p.preferredFoot ?? '');
+        setJerseyNumber(p.jerseyNumber != null ? String(p.jerseyNumber) : '');
+        setCurrentTeam(p.currentTeam ?? '');
+        setSchool(p.school ?? '');
+        setYearsOfTraining(p.yearsOfTraining != null ? String(p.yearsOfTraining) : '');
+        setCurrentAcademy(p.currentAcademy ?? '');
+        setCurrentCoach(p.currentCoach ?? '');
+        if (p.skills?.length) {
+          setSkills(p.skills.map((s) => ({ label: s.label, rating: String(s.rating) })));
+        }
+
+        if (p.playerSports?.length) {
+          const ordered = [...p.playerSports].sort(
+            (a, b) => Number(b.isPrimary) - Number(a.isPrimary),
+          );
+          setSelected(ordered.map((ps) => ps.sportId));
+          setPrimarySportId(
+            (ordered.find((ps) => ps.isPrimary) ?? ordered[0]).sportId,
+          );
+          const defs: Record<string, SportAttributeDefinition[]> = {};
+          const values: AttrValues = {};
+          const academies: Record<string, string> = {};
+          for (const ps of ordered) {
+            values[ps.sportId] = {};
+            if (ps.academyName) academies[ps.sportId] = ps.academyName;
+            for (const attr of ps.attributes) {
+              if (attr.aggregation === 'NONE' && !attr.isDefault && attr.value != null) {
+                values[ps.sportId][attr.key] = attr.value;
+              }
+            }
+            try {
+              const d = await getSportAttributes(ps.sportId, 'PROFILE');
+              defs[ps.sportId] = d.filter((x) => x.aggregation === 'NONE');
+            } catch {
+              defs[ps.sportId] = [];
+            }
+          }
+          setAttrDefs(defs);
+          setAttrValues(values);
+          setSportAcademies(academies);
+        }
+      } catch {
+        // No existing profile — fresh onboarding.
+      }
+    })();
+  }, []);
+
   const toggleSport = async (sportId: string) => {
     setError(null);
     if (selected.includes(sportId)) {
-      setSelected((s) => s.filter((id) => id !== sportId));
+      const remaining = selected.filter((id) => id !== sportId);
+      setSelected(remaining);
+      // If the primary sport was removed, fall back to the first remaining one.
+      setPrimarySportId((cur) => (cur === sportId ? remaining[0] ?? '' : cur));
       return;
     }
     setSelected((s) => [...s, sportId]);
+    // First sport selected becomes primary by default.
+    setPrimarySportId((cur) => cur || sportId);
     if (!attrDefs[sportId]) {
       try {
         const defs = await getSportAttributes(sportId, 'PROFILE');
@@ -92,16 +186,32 @@ export default function OnboardingScreen() {
           setError('Please fill name, date of birth, gender and district.');
           return;
         }
-        await saveOnboardingStep(1, { fullName, dateOfBirth, gender, district });
+        await saveOnboardingStep(1, {
+          fullName,
+          dateOfBirth,
+          gender,
+          district,
+          bio: bio || undefined,
+          coverUrl: coverUrl.trim() || undefined,
+          heightCm: heightCm ? Number(heightCm) : undefined,
+          weightKg: weightKg ? Number(weightKg) : undefined,
+          playingLevel: playingLevel || undefined,
+          preferredFoot: preferredFoot || undefined,
+          jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined,
+          currentTeam: currentTeam || undefined,
+          school: school || undefined,
+        });
         setStep(2);
       } else if (step === 2) {
         if (selected.length === 0) {
           setError('Select at least one sport.');
           return;
         }
-        const payloadSports = selected.map((sportId, i) => ({
+        const primaryId = primarySportId || selected[0];
+        const payloadSports = selected.map((sportId) => ({
           sportId,
-          isPrimary: i === 0,
+          isPrimary: sportId === primaryId,
+          academy: sportAcademies[sportId]?.trim() || undefined,
           attributes: Object.entries(attrValues[sportId] ?? {})
             .filter(([, val]) => val !== undefined && val !== '')
             .map(([key, value]) => ({ key, value })),
@@ -114,7 +224,18 @@ export default function OnboardingScreen() {
           currentAcademy: currentAcademy || undefined,
           currentCoach: currentCoach || undefined,
         });
+        // Persist skill ratings (clamped 0–100) before finishing.
+        const skillPayload = skills
+          .filter((s) => s.label.trim())
+          .map((s) => ({
+            label: s.label.trim(),
+            rating: Math.max(0, Math.min(100, Number(s.rating) || 0)),
+          }));
+        if (skillPayload.length) {
+          await setMySkills(skillPayload).catch(() => undefined);
+        }
         await completeOnboarding();
+        await refresh();
         router.replace('/home');
         return;
       }
@@ -159,6 +280,79 @@ export default function OnboardingScreen() {
                 onChange={setDistrict}
                 icon="location-outline"
               />
+              <View style={styles.row}>
+                <View style={styles.flex}>
+                  <TextField
+                    label="Height (cm)"
+                    placeholder="e.g. 175"
+                    value={heightCm}
+                    onChangeText={setHeightCm}
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <TextField
+                    label="Weight (kg)"
+                    placeholder="e.g. 68"
+                    value={weightKg}
+                    onChangeText={setWeightKg}
+                    keyboardType="number-pad"
+                  />
+                </View>
+              </View>
+              <TextField
+                label="Short bio"
+                placeholder="A line about you as an athlete"
+                value={bio}
+                onChangeText={setBio}
+                maxLength={300}
+              />
+              <TextField
+                label="Cover photo URL"
+                placeholder="https://…/your-cover.jpg"
+                value={coverUrl}
+                onChangeText={setCoverUrl}
+                autoCapitalize="none"
+              />
+              <Select
+                label="Playing level"
+                placeholder="Select level"
+                value={playingLevel}
+                options={PLAYING_LEVELS}
+                onChange={setPlayingLevel}
+              />
+              <View style={styles.row}>
+                <View style={styles.flex}>
+                  <Select
+                    label="Preferred foot/hand"
+                    placeholder="Select"
+                    value={preferredFoot}
+                    options={FOOT_OPTIONS}
+                    onChange={setPreferredFoot}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <TextField
+                    label="Jersey no."
+                    placeholder="e.g. 8"
+                    value={jerseyNumber}
+                    onChangeText={setJerseyNumber}
+                    keyboardType="number-pad"
+                  />
+                </View>
+              </View>
+              <TextField
+                label="Current team"
+                placeholder="e.g. Bangalore United FC"
+                value={currentTeam}
+                onChangeText={setCurrentTeam}
+              />
+              <TextField
+                label="School / College"
+                placeholder="e.g. St. Joseph's College"
+                value={school}
+                onChangeText={setSchool}
+              />
             </View>
           </>
         )}
@@ -187,26 +381,49 @@ export default function OnboardingScreen() {
             {selected.map((sportId) => {
               const sport = sports.find((s) => s.id === sportId);
               const defs = attrDefs[sportId];
+              const isPrimary = primarySportId === sportId;
               return (
                 <View key={sportId} style={styles.sportSection}>
                   <View style={styles.sportSectionHead}>
                     <SportIcon sport={sport?.name ?? ''} size={18} color={colors.primary} />
                     <Text style={styles.sportSectionTitle}>{sport?.name}</Text>
+                    <Pressable
+                      onPress={() => setPrimarySportId(sportId)}
+                      hitSlop={8}
+                      style={[styles.primaryChip, isPrimary && styles.primaryChipOn]}
+                    >
+                      <Icon
+                        name="star"
+                        size={14}
+                        color={isPrimary ? colors.primary : colors.textFaint}
+                      />
+                      <Text style={[styles.primaryChipText, isPrimary && styles.primaryChipTextOn]}>
+                        {isPrimary ? 'Primary' : 'Set primary'}
+                      </Text>
+                    </Pressable>
                   </View>
-                  {!defs ? (
-                    <ActivityIndicator color={colors.primary} />
-                  ) : (
-                    <View style={styles.fields}>
-                      {defs.map((def) => (
+                  <View style={styles.fields}>
+                    <TextField
+                      label="Academy / club"
+                      placeholder="e.g. Rohtak Akhara"
+                      value={sportAcademies[sportId] ?? ''}
+                      onChangeText={(val) =>
+                        setSportAcademies((a) => ({ ...a, [sportId]: val }))
+                      }
+                    />
+                    {!defs ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      defs.map((def) => (
                         <DynamicField
                           key={def.id}
                           def={def}
                           value={attrValues[sportId]?.[def.key]}
                           onChange={(val) => setAttr(sportId, def.key, val)}
                         />
-                      ))}
-                    </View>
-                  )}
+                      ))
+                    )}
+                  </View>
                 </View>
               );
             })}
@@ -222,6 +439,29 @@ export default function OnboardingScreen() {
               <TextField label="Current academy" placeholder="e.g. Rohtak Akhara" value={currentAcademy} onChangeText={setCurrentAcademy} />
               <TextField label="Current coach" placeholder="e.g. Coach Singh" value={currentCoach} onChangeText={setCurrentCoach} />
             </View>
+
+            {skills.length ? (
+              <View style={styles.skillsBlock}>
+                <Text style={styles.sportSectionTitle}>Skills (0–100)</Text>
+                {skills.map((s, i) => (
+                  <View key={s.label} style={styles.skillEditRow}>
+                    <Text style={styles.skillEditLabel}>{s.label}</Text>
+                    <View style={styles.skillEditInput}>
+                      <TextField
+                        value={s.rating}
+                        onChangeText={(val) =>
+                          setSkills((arr) =>
+                            arr.map((x, j) => (j === i ? { ...x, rating: val.replace(/[^0-9]/g, '') } : x)),
+                          )
+                        }
+                        keyboardType="number-pad"
+                        maxLength={3}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </>
         )}
 
@@ -320,6 +560,8 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.xl, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: fontSize.md, color: colors.textMuted, marginBottom: spacing.md },
   fields: { gap: spacing.md },
+  row: { flexDirection: 'row', gap: spacing.md },
+  flex: { flex: 1 },
   sportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   sportChip: {
     flexDirection: 'row',
@@ -346,6 +588,32 @@ const styles = StyleSheet.create({
   },
   sportSectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sportSectionTitle: { fontSize: fontSize.md, fontWeight: '800', color: colors.text },
+  primaryChip: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  primaryChipOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  primaryChipText: { fontSize: fontSize.xs, fontWeight: '700', color: colors.textMuted },
+  primaryChipTextOn: { color: colors.primary },
+  skillsBlock: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  skillEditRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  skillEditLabel: { flex: 1, fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
+  skillEditInput: { width: 90 },
   error: { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.sm },
   footer: {
     padding: spacing.lg,

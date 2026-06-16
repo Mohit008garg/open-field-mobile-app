@@ -14,6 +14,7 @@ export interface AttributeItem {
 export interface OnboardingSport {
   sportId: string;
   isPrimary?: boolean;
+  academy?: string;
   attributes?: AttributeItem[];
 }
 
@@ -24,6 +25,15 @@ export interface SaveStepPayload {
   gender?: string;
   district?: string;
   photoUrl?: string;
+  bio?: string;
+  coverUrl?: string;
+  heightCm?: number;
+  weightKg?: number;
+  playingLevel?: string;
+  currentTeam?: string;
+  school?: string;
+  preferredFoot?: string;
+  jerseyNumber?: number;
   // step 2
   sports?: OnboardingSport[];
   // step 3

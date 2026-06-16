@@ -17,3 +17,15 @@ export type {
   SaveStepPayload,
   AttributeItem,
 } from './onboarding';
+export { getMyProfile, updateMyProfile, setMySkills } from './profile';
+export type {
+  PlayerProfile,
+  PlayerSport,
+  ResolvedAttribute,
+  Achievement,
+  ProfileVideo,
+  PlayerSkill,
+  UpdateProfilePayload,
+} from './profile';
+export { getFeed, createPost, toggleLike, getHomeStats, getComments, addComment } from './feed';
+export type { Post, PostAuthor, HomeStats, FeedTab, PostComment } from './feed';

@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ensureInitialPermissions } from '@/permissions/permissions';
 import { colors } from '@/theme';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -11,6 +13,11 @@ function tabIcon(active: IoniconName, inactive: IoniconName) {
 }
 
 export default function AppLayout() {
+  // Ask for notifications/location/camera once, on first entry into the app.
+  useEffect(() => {
+    void ensureInitialPermissions();
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -51,6 +58,9 @@ export default function AppLayout() {
       <Tabs.Screen name="messages" options={{ href: null }} />
       <Tabs.Screen name="events" options={{ href: null }} />
       <Tabs.Screen name="menu" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="privacy" options={{ href: null }} />
+      <Tabs.Screen name="help" options={{ href: null }} />
     </Tabs>
   );
 }
