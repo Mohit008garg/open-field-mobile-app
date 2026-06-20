@@ -12,16 +12,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Logo } from '@mohit008garg/open-field-common-components';
 import { useGoogleAuth, type GoogleCredential } from '@/hooks/useGoogleAuth';
 import { useAuth } from '@/context/AuthContext';
+import { getOnboardingProgress } from '@/api';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { signInWithGoogle } = useAuth();
 
-  // Exchange the Google ID token for an app session (JWT) before entering.
+  // Exchange the Google ID token for an app session, then route to onboarding
+  // (new users) or straight to Home (returning users who finished onboarding).
   const onSignedIn = async ({ idToken }: GoogleCredential) => {
     await signInWithGoogle(idToken);
-    router.replace('/home');
+    try {
+      const progress = await getOnboardingProgress();
+      router.replace(progress.isCompleted ? '/home' : '/onboarding');
+    } catch {
+      router.replace('/onboarding');
+    }
   };
 
   const { signIn, loading, error, configured } = useGoogleAuth(onSignedIn);
