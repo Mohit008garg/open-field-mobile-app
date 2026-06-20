@@ -10,14 +10,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Logo } from '@mohit008garg/open-field-common-components';
-import { useGoogleAuth, type GoogleUser } from '@/hooks/useGoogleAuth';
+import { useGoogleAuth, type GoogleCredential } from '@/hooks/useGoogleAuth';
+import { useAuth } from '@/context/AuthContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signInWithGoogle } = useAuth();
 
-  const onSignedIn = (_user: GoogleUser) => {
-    // TODO: exchange the Google identity with the backend for an app session.
+  // Exchange the Google ID token for an app session (JWT) before entering.
+  const onSignedIn = async ({ idToken }: GoogleCredential) => {
+    await signInWithGoogle(idToken);
     router.replace('/home');
   };
 
