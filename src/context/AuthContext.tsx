@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as authApi from '@/api/auth';
 import { saveTokens } from '@/api/tokenStore';
 import type { AuthUser } from '@/api/types';
@@ -48,6 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await authApi.logout();
+    // Clear the Google session too, so the next sign-in prompts for an account
+    // instead of silently reusing the last one.
+    await GoogleSignin.signOut().catch(() => {});
     setUser(null);
     setIsAuthenticated(false);
   }, []);

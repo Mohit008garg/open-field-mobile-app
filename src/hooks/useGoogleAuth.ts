@@ -40,6 +40,9 @@ export function useGoogleAuth(onSignedIn: (credential: GoogleCredential) => void
     setLoading(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      // Clear any cached Google session first so the OS account picker is always
+      // shown — otherwise Google silently reuses the last-signed-in account.
+      await GoogleSignin.signOut().catch(() => {});
       const result = await GoogleSignin.signIn();
 
       // v13 returns { type, data: { user, idToken } }; older returns these at
