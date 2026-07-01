@@ -173,7 +173,7 @@ export default function OnboardingScreen() {
             }
             try {
               const d = await getSportAttributes(ps.sportId, 'PROFILE');
-              defs[ps.sportId] = d.filter((x) => x.aggregation === 'NONE');
+              defs[ps.sportId] = d.filter((x) => x.showInOnboarding);
             } catch {
               defs[ps.sportId] = [];
             }
@@ -203,7 +203,7 @@ export default function OnboardingScreen() {
     if (!attrDefs[sportId]) {
       try {
         const defs = await getSportAttributes(sportId, 'PROFILE');
-        setAttrDefs((d) => ({ ...d, [sportId]: defs.filter((x) => x.aggregation === 'NONE') }));
+        setAttrDefs((d) => ({ ...d, [sportId]: defs.filter((x) => x.showInOnboarding) }));
       } catch {
         setAttrDefs((d) => ({ ...d, [sportId]: [] }));
       }
@@ -550,7 +550,7 @@ function DynamicField({
           label={def.label}
           placeholder={`Select ${def.label.toLowerCase()}`}
           value={value as string}
-          options={def.options ?? []}
+          options={(def.options ?? []).map((o) => ({ value: o.value, label: o.label || o.value }))}
           onChange={onChange}
         />
       );

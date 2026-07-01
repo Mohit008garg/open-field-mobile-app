@@ -15,11 +15,12 @@ export interface SportAttributeDefinition {
   unit: string | null;
   isRequired: boolean;
   defaultValue: string | null;
-  options: { value: string; label: string }[] | null;
+  options: { value: string; label?: string }[] | null;
   scope: 'PROFILE' | 'MATCH';
   aggregation: string;
   sourceKey: string | null;
   displayOrder: number;
+  showInOnboarding: boolean;
 }
 
 export interface CountryRef {
