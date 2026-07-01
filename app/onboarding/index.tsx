@@ -86,9 +86,15 @@ export default function OnboardingScreen() {
   const [currentCoach, setCurrentCoach] = useState('');
 
   useEffect(() => {
-    getSports().then(setSports).catch(() => undefined);
     getDistricts().then(setDistricts).catch(() => undefined);
   }, []);
+
+  // Only show sports activated for the chosen district (plus unrestricted ones).
+  useEffect(() => {
+    getSports(district || undefined)
+      .then(setSports)
+      .catch(() => undefined);
+  }, [district]);
 
   // Prefill with the existing profile so re-opening "Edit profile" shows saved
   // values. New users (no profile yet → 404) just start with empty fields.
@@ -99,7 +105,7 @@ export default function OnboardingScreen() {
         setFullName(p.fullName ?? '');
         setDateOfBirth(p.dateOfBirth ? p.dateOfBirth.slice(0, 10) : '');
         setGender(p.gender ?? '');
-        setDistrict(p.district ?? '');
+        setDistrict(p.districtId ?? '');
         setBio(p.bio ?? '');
         setCoverUrl(p.coverUrl ?? '');
         setHeightCm(p.heightCm != null ? String(p.heightCm) : '');
@@ -190,7 +196,7 @@ export default function OnboardingScreen() {
           fullName,
           dateOfBirth,
           gender,
-          district,
+          districtId: district,
           bio: bio || undefined,
           coverUrl: coverUrl.trim() || undefined,
           heightCm: heightCm ? Number(heightCm) : undefined,
@@ -276,7 +282,7 @@ export default function OnboardingScreen() {
                 label="District"
                 placeholder="Select district"
                 value={district}
-                options={districts.map((d) => ({ value: d.code, label: d.name }))}
+                options={districts.map((d) => ({ value: d.id, label: d.name }))}
                 onChange={setDistrict}
                 icon="location-outline"
               />

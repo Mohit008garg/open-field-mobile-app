@@ -3,6 +3,8 @@ import { apiRequest } from './client';
 export interface Sport {
   id: string;
   name: string;
+  description?: string | null;
+  iconUrl?: string | null;
 }
 
 export interface SportAttributeDefinition {
@@ -21,14 +23,18 @@ export interface SportAttributeDefinition {
 }
 
 export interface DistrictRef {
+  id: string;
   code: string;
   name: string;
   state: string;
 }
 
-/** Active sports from the backend. */
-export function getSports(): Promise<Sport[]> {
-  return apiRequest<Sport[]>('/sports');
+/**
+ * Active sports. Pass a districtId to get only sports active for that district
+ * (plus location-unrestricted sports); omit for all active sports.
+ */
+export function getSports(districtId?: string): Promise<Sport[]> {
+  return apiRequest<Sport[]>(districtId ? `/sports?districtId=${districtId}` : '/sports');
 }
 
 /** Attribute definitions (form schema) for a sport, optionally filtered by scope. */

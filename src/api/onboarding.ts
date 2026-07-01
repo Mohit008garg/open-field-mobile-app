@@ -23,7 +23,7 @@ export interface SaveStepPayload {
   fullName?: string;
   dateOfBirth?: string;
   gender?: string;
-  district?: string;
+  districtId?: string;
   photoUrl?: string;
   bio?: string;
   coverUrl?: string;

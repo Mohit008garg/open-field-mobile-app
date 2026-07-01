@@ -62,6 +62,7 @@ export interface PlayerProfile {
   photoUrl: string | null;
   coverUrl: string | null;
   district: string;
+  districtId: string;
   state: string;
   heightCm: number | null;
   weightKg: number | null;
