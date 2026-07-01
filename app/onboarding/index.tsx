@@ -12,15 +12,19 @@ import {
 } from '@mohit008garg/open-field-common-components';
 import {
   completeOnboarding,
-  getDistricts,
+  getCities,
+  getCountries,
   getMyProfile,
   getSportAttributes,
   getSports,
+  getStates,
   saveOnboardingStep,
   setMySkills,
-  type DistrictRef,
+  type CityRef,
+  type CountryRef,
   type Sport,
   type SportAttributeDefinition,
+  type StateRef,
 } from '@/api';
 import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
@@ -50,14 +54,18 @@ export default function OnboardingScreen() {
 
   // Reference data
   const [sports, setSports] = useState<Sport[]>([]);
-  const [districts, setDistricts] = useState<DistrictRef[]>([]);
+  const [countries, setCountries] = useState<CountryRef[]>([]);
+  const [states, setStates] = useState<StateRef[]>([]);
+  const [cities, setCities] = useState<CityRef[]>([]);
   const [attrDefs, setAttrDefs] = useState<Record<string, SportAttributeDefinition[]>>({});
 
   // Step 1
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
-  const [district, setDistrict] = useState('');
+  const [countryId, setCountryId] = useState('');
+  const [stateId, setStateId] = useState('');
+  const [cityId, setCityId] = useState('');
   const [bio, setBio] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [heightCm, setHeightCm] = useState('');
@@ -86,15 +94,35 @@ export default function OnboardingScreen() {
   const [currentCoach, setCurrentCoach] = useState('');
 
   useEffect(() => {
-    getDistricts().then(setDistricts).catch(() => undefined);
+    getCountries().then(setCountries).catch(() => undefined);
   }, []);
 
-  // Only show sports activated for the chosen district (plus unrestricted ones).
+  // Cascade: country → states, state → cities. Reset children on parent change.
   useEffect(() => {
-    getSports(district || undefined)
+    if (!countryId) {
+      setStates([]);
+      return;
+    }
+    getStates(countryId).then(setStates).catch(() => undefined);
+    setStateId('');
+    setCityId('');
+  }, [countryId]);
+
+  useEffect(() => {
+    if (!stateId) {
+      setCities([]);
+      return;
+    }
+    getCities(stateId).then(setCities).catch(() => undefined);
+    setCityId('');
+  }, [stateId]);
+
+  // Only show sports activated for the chosen city/state (plus unrestricted ones).
+  useEffect(() => {
+    getSports(cityId || undefined)
       .then(setSports)
       .catch(() => undefined);
-  }, [district]);
+  }, [cityId]);
 
   // Prefill with the existing profile so re-opening "Edit profile" shows saved
   // values. New users (no profile yet → 404) just start with empty fields.
@@ -105,7 +133,9 @@ export default function OnboardingScreen() {
         setFullName(p.fullName ?? '');
         setDateOfBirth(p.dateOfBirth ? p.dateOfBirth.slice(0, 10) : '');
         setGender(p.gender ?? '');
-        setDistrict(p.districtId ?? '');
+        setCountryId(p.location?.country?.id ?? '');
+        setStateId(p.location?.state?.id ?? '');
+        setCityId(p.location?.city?.id ?? '');
         setBio(p.bio ?? '');
         setCoverUrl(p.coverUrl ?? '');
         setHeightCm(p.heightCm != null ? String(p.heightCm) : '');
@@ -188,15 +218,17 @@ export default function OnboardingScreen() {
     try {
       setSaving(true);
       if (step === 1) {
-        if (!fullName || !dateOfBirth || !gender || !district) {
-          setError('Please fill name, date of birth, gender and district.');
+        if (!fullName || !dateOfBirth || !gender || !countryId || !stateId || !cityId) {
+          setError('Please fill name, date of birth, gender and country/state/city.');
           return;
         }
         await saveOnboardingStep(1, {
           fullName,
           dateOfBirth,
           gender,
-          districtId: district,
+          countryId,
+          stateId,
+          cityId,
           bio: bio || undefined,
           coverUrl: coverUrl.trim() || undefined,
           heightCm: heightCm ? Number(heightCm) : undefined,
@@ -279,11 +311,27 @@ export default function OnboardingScreen() {
               <DateField label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} minYear={currentYear - 70} maxYear={currentYear - 5} />
               <Select label="Gender" placeholder="Select gender" value={gender} options={GENDERS} onChange={setGender} />
               <Select
-                label="District"
-                placeholder="Select district"
-                value={district}
-                options={districts.map((d) => ({ value: d.id, label: d.name }))}
-                onChange={setDistrict}
+                label="Country"
+                placeholder="Select country"
+                value={countryId}
+                options={countries.map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setCountryId}
+                icon="location-outline"
+              />
+              <Select
+                label="State"
+                placeholder={countryId ? 'Select state' : 'Select a country first'}
+                value={stateId}
+                options={states.map((s) => ({ value: s.id, label: s.name }))}
+                onChange={setStateId}
+                icon="location-outline"
+              />
+              <Select
+                label="City"
+                placeholder={stateId ? 'Select city' : 'Select a state first'}
+                value={cityId}
+                options={cities.map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setCityId}
                 icon="location-outline"
               />
               <View style={styles.row}>

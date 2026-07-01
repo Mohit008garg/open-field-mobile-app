@@ -112,9 +112,9 @@ export default function ProfileScreen() {
 
   const name = profile?.fullName ?? user?.name ?? 'Your profile';
   const sport = primarySport(profile);
-  const location = profile
-    ? `${titleCase(profile.district)}, ${profile.state}`
-    : '—';
+  const location =
+    [profile?.location?.city?.name, profile?.location?.state?.name].filter(Boolean).join(', ') ||
+    '—';
 
   // Stat cells: a few key sport attributes + physical stats.
   const sportAttrs = (sport?.attributes ?? []).slice(0, 3);
@@ -203,7 +203,8 @@ function AboutTab({ profile }: { profile: PlayerProfile | null }) {
     { key: 'Jersey Number', value: profile?.jerseyNumber != null ? String(profile.jerseyNumber) : '—' },
     { key: 'Current Team', value: profile?.currentTeam ?? '—' },
     { key: 'School / College', value: profile?.school ?? '—' },
-    { key: 'District', value: titleCase(profile?.district) },
+    { key: 'City', value: profile?.location?.city?.name ?? '—' },
+    { key: 'State', value: profile?.location?.state?.name ?? '—' },
     { key: 'Height', value: profile?.heightCm ? `${profile.heightCm} cm` : '—' },
     { key: 'Weight', value: profile?.weightKg ? `${profile.weightKg} kg` : '—' },
     { key: 'Years of training', value: profile?.yearsOfTraining != null ? String(profile.yearsOfTraining) : '—' },

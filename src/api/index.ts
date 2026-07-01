@@ -4,8 +4,8 @@ export { signInWithGoogle, logout, getTokens } from './auth';
 export { saveTokens, clearTokens } from './tokenStore';
 export type { AuthUser, AuthResponse } from './types';
 export { ApiError } from './types';
-export { getSports, getSportAttributes, getDistricts } from './reference';
-export type { Sport, SportAttributeDefinition, DistrictRef } from './reference';
+export { getSports, getSportAttributes, getCountries, getStates, getCities } from './reference';
+export type { Sport, SportAttributeDefinition, CountryRef, StateRef, CityRef } from './reference';
 export {
   getOnboardingProgress,
   saveOnboardingStep,

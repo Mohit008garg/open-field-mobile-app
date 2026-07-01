@@ -22,19 +22,29 @@ export interface SportAttributeDefinition {
   displayOrder: number;
 }
 
-export interface DistrictRef {
+export interface CountryRef {
   id: string;
   code: string;
   name: string;
-  state: string;
+}
+export interface StateRef {
+  id: string;
+  name: string;
+  code: string | null;
+  countryId: string;
+}
+export interface CityRef {
+  id: string;
+  name: string;
+  stateId: string;
 }
 
 /**
- * Active sports. Pass a districtId to get only sports active for that district
- * (plus location-unrestricted sports); omit for all active sports.
+ * Active sports. Pass a cityId to get only sports active for that city or its
+ * state (plus location-unrestricted sports); omit for all active sports.
  */
-export function getSports(districtId?: string): Promise<Sport[]> {
-  return apiRequest<Sport[]>(districtId ? `/sports?districtId=${districtId}` : '/sports');
+export function getSports(cityId?: string): Promise<Sport[]> {
+  return apiRequest<Sport[]>(cityId ? `/sports?cityId=${cityId}` : '/sports');
 }
 
 /** Attribute definitions (form schema) for a sport, optionally filtered by scope. */
@@ -46,6 +56,14 @@ export function getSportAttributes(
   return apiRequest<SportAttributeDefinition[]>(`/sports/${sportId}/attributes${q}`);
 }
 
-export function getDistricts(): Promise<DistrictRef[]> {
-  return apiRequest<DistrictRef[]>('/districts');
+export function getCountries(): Promise<CountryRef[]> {
+  return apiRequest<CountryRef[]>('/countries');
+}
+
+export function getStates(countryId: string): Promise<StateRef[]> {
+  return apiRequest<StateRef[]>(`/states?countryId=${countryId}`);
+}
+
+export function getCities(stateId: string): Promise<CityRef[]> {
+  return apiRequest<CityRef[]>(`/cities?stateId=${stateId}`);
 }

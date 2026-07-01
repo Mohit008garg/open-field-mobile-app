@@ -61,9 +61,14 @@ export interface PlayerProfile {
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   photoUrl: string | null;
   coverUrl: string | null;
-  district: string;
-  districtId: string;
-  state: string;
+  location: {
+    country: { id: string; name: string } | null;
+    state: { id: string; name: string } | null;
+    city: { id: string; name: string } | null;
+    addressLine: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
   heightCm: number | null;
   weightKg: number | null;
   playingLevel: string | null;
