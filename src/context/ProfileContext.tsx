@@ -35,7 +35,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     try {
       const fresh = await getMyProfile();
       setProfile(fresh);
-      setNeedsOnboarding(false);
+      // A profile can exist mid-onboarding (step 1 creates it). Only treat the
+      // user as done when onboarding is explicitly completed. Legacy profiles
+      // without an onboarding record are treated as done (no forced re-onboard).
+      setNeedsOnboarding(fresh.onboarding ? !fresh.onboarding.isCompleted : false);
       await writeCache(CACHE_KEY, fresh);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {

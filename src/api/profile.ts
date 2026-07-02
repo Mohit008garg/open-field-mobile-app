@@ -90,6 +90,11 @@ export interface PlayerProfile {
   achievements: Achievement[];
   videos: ProfileVideo[];
   skills: PlayerSkill[];
+  onboarding?: {
+    currentStep: number;
+    completedSteps: number[];
+    isCompleted: boolean;
+  } | null;
 }
 
 export interface UpdateProfilePayload {

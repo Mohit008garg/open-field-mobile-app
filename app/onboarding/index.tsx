@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   DateField,
@@ -15,12 +23,14 @@ import {
   getCities,
   getCountries,
   getMyProfile,
+  getOnboardingProgress,
   getSportAttributes,
   getSports,
   getStates,
   saveOnboardingStep,
   setMySkills,
   type CityRef,
+  type CompleteResult,
   type CountryRef,
   type Sport,
   type SportAttributeDefinition,
@@ -29,7 +39,7 @@ import {
 import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
-const TOTAL = 3;
+const TOTAL = 5;
 const GENDERS = [
   { value: 'MALE', label: 'Male' },
   { value: 'FEMALE', label: 'Female' },
@@ -51,6 +61,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<CompleteResult | null>(null);
 
   // Reference data
   const [sports, setSports] = useState<Sport[]>([]);
@@ -95,6 +106,15 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     getCountries().then(setCountries).catch(() => undefined);
+  }, []);
+
+  // Resume where the user left off (server is the source of truth).
+  useEffect(() => {
+    getOnboardingProgress()
+      .then((p) => {
+        if (!p.isCompleted) setStep(Math.min(Math.max(p.currentStep, 1), TOTAL));
+      })
+      .catch(() => undefined);
   }, []);
 
   // Cascade: country → states, state → cities. Reset children on parent change.
@@ -256,13 +276,13 @@ export default function OnboardingScreen() {
         }));
         await saveOnboardingStep(2, { sports: payloadSports });
         setStep(3);
-      } else {
+      } else if (step === 3) {
         await saveOnboardingStep(3, {
           yearsOfTraining: yearsOfTraining ? Number(yearsOfTraining) : undefined,
           currentAcademy: currentAcademy || undefined,
           currentCoach: currentCoach || undefined,
         });
-        // Persist skill ratings (clamped 0–100) before finishing.
+        // Persist skill ratings (clamped 0–100).
         const skillPayload = skills
           .filter((s) => s.label.trim())
           .map((s) => ({
@@ -272,9 +292,17 @@ export default function OnboardingScreen() {
         if (skillPayload.length) {
           await setMySkills(skillPayload).catch(() => undefined);
         }
-        await completeOnboarding();
+        setStep(4);
+      } else if (step === 4) {
+        // Achievements are skippable during onboarding.
+        await saveOnboardingStep(4, { skip: true });
+        setStep(5);
+      } else {
+        // Step 5 (video) is skippable — record it, then complete.
+        await saveOnboardingStep(5, { skip: true });
+        const result = await completeOnboarding();
         await refresh();
-        router.replace('/home');
+        setDone(result);
         return;
       }
     } catch (e) {
@@ -285,6 +313,8 @@ export default function OnboardingScreen() {
   };
 
   const back = () => (step > 1 ? setStep((s) => s - 1) : router.back());
+
+  if (done) return <AhaMoment result={done} onGo={() => router.replace('/home')} />;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -519,6 +549,36 @@ export default function OnboardingScreen() {
           </>
         )}
 
+        {step === 4 && (
+          <>
+            <Text style={styles.title}>Your first achievement</Text>
+            <Text style={styles.subtitle}>
+              Won a medal or tournament? You can add achievements now or later from your profile.
+            </Text>
+            <View style={styles.optionalCard}>
+              <Icon name="trophy-outline" size={28} color={colors.primary} />
+              <Text style={styles.optionalText}>
+                This step is optional — tap Continue to skip and add achievements anytime.
+              </Text>
+            </View>
+          </>
+        )}
+
+        {step === 5 && (
+          <>
+            <Text style={styles.title}>Your first video</Text>
+            <Text style={styles.subtitle}>
+              Highlight clips make your profile shine. You can upload videos later from your profile.
+            </Text>
+            <View style={styles.optionalCard}>
+              <Icon name="image-outline" size={28} color={colors.primary} />
+              <Text style={styles.optionalText}>
+                This step is optional — tap Finish to complete your profile and add videos anytime.
+              </Text>
+            </View>
+          </>
+        )}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
@@ -528,6 +588,41 @@ export default function OnboardingScreen() {
           onPress={next}
           disabled={saving}
         />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/** Celebratory profile-reveal shown right after onboarding completes (#16). */
+function AhaMoment({ result, onGo }: { result: CompleteResult; onGo: () => void }) {
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.aha}>
+        <Icon name="checkmark-circle" size={84} color={colors.primary} />
+        <Text style={styles.ahaTitle}>You&apos;re on Open Field! 🎉</Text>
+        <Text style={styles.ahaSubtitle}>
+          {result.profile.fullName}, your athlete profile is live — score{' '}
+          {result.profile.profileScore}.
+        </Text>
+        <View style={styles.ahaUrlCard}>
+          <Text style={styles.ahaUrlLabel}>Your public profile</Text>
+          <Text style={styles.ahaUrl}>{result.profileUrl}</Text>
+        </View>
+        <View style={styles.ahaActions}>
+          <PrimaryButton
+            label="Share on WhatsApp"
+            onPress={() => Linking.openURL(result.whatsappShareLink).catch(() => undefined)}
+          />
+          <Pressable
+            style={styles.ahaSecondary}
+            onPress={() => Linking.openURL(result.profileUrl).catch(() => undefined)}
+          >
+            <Text style={styles.ahaSecondaryText}>View Sports CV</Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.footer}>
+        <PrimaryButton label="Go to my profile" onPress={onGo} />
       </View>
     </SafeAreaView>
   );
@@ -675,4 +770,44 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
+  optionalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  optionalText: { flex: 1, fontSize: fontSize.sm, color: colors.textMuted },
+  aha: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  ahaTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  ahaSubtitle: { fontSize: fontSize.md, color: colors.textMuted, textAlign: 'center' },
+  ahaUrlCard: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  ahaUrlLabel: { fontSize: fontSize.xs, color: colors.textMuted },
+  ahaUrl: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  ahaActions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.lg },
+  ahaSecondary: { alignItems: 'center', paddingVertical: spacing.sm },
+  ahaSecondaryText: { fontSize: fontSize.md, fontWeight: '700', color: colors.primary },
 });
