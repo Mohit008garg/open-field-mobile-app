@@ -39,11 +39,15 @@ export function getFeed(tab: FeedTab = 'for_you'): Promise<Post[]> {
   return apiRequest<Post[]>(`/feed?tab=${tab}`, { auth: true });
 }
 
-export function createPost(content: string, type?: Post['type']): Promise<Post> {
+export function createPost(
+  content: string,
+  type?: Post['type'],
+  imageUrl?: string,
+): Promise<Post> {
   return apiRequest<Post>('/posts', {
     method: 'POST',
     auth: true,
-    body: { content, type },
+    body: { content, type, imageUrl },
   });
 }
 

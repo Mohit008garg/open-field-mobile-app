@@ -39,6 +39,12 @@
           "locationWhenInUsePermission": "Allow OpenField to use your location to show nearby academies, trials and events."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow OpenField to access your photos so you can add a profile or achievement picture."
+        }
+      ],
       "expo-notifications"
     ],
     "experiments": {

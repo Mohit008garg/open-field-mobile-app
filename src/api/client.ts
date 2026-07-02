@@ -96,3 +96,25 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (res.status === 204) return undefined as T;
   return unwrap<T>(await res.json());
 }
+
+/**
+ * Multipart upload (images). Leaves Content-Type unset so React Native sets the
+ * multipart boundary. Attaches the bearer token and refreshes once on 401.
+ */
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const doFetch = (token?: string) =>
+    fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    });
+
+  const token = (await getTokens())?.accessToken;
+  let res = await doFetch(token);
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) res = await doFetch(refreshed);
+  }
+  if (!res.ok) throw await parseError(res);
+  return unwrap<T>(await res.json());
+}

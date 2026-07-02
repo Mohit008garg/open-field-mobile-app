@@ -13,13 +13,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   DateField,
   Icon,
+  ImageUploader,
   PrimaryButton,
+  ProgressBar,
   Select,
   SportIcon,
   TextField,
+  type PickedImage,
 } from '@mohit008garg/open-field-common-components';
 import {
   completeOnboarding,
+  createAchievement,
+  createPost,
   getCities,
   getCountries,
   getMyProfile,
@@ -29,13 +34,19 @@ import {
   getStates,
   saveOnboardingStep,
   setMySkills,
+  COMPETITION_LEVELS,
+  POSITIONS,
   type CityRef,
   type CompleteResult,
+  type CompetitionLevel,
   type CountryRef,
+  type PlayerProfile,
+  type Position,
   type Sport,
   type SportAttributeDefinition,
   type StateRef,
 } from '@/api';
+import { uploadImage } from '@/api/upload';
 import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
@@ -78,7 +89,7 @@ export default function OnboardingScreen() {
   const [stateId, setStateId] = useState('');
   const [cityId, setCityId] = useState('');
   const [bio, setBio] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [playingLevel, setPlayingLevel] = useState('');
@@ -117,15 +128,15 @@ export default function OnboardingScreen() {
       .catch(() => undefined);
   }, []);
 
-  // Cascade: country → states, state → cities. Reset children on parent change.
+  // Cascade: load the child options when the parent changes. The child *value*
+  // is reset in the Select onChange handlers (not here) so a prefilled/selected
+  // value isn't clobbered when its options load.
   useEffect(() => {
     if (!countryId) {
       setStates([]);
       return;
     }
     getStates(countryId).then(setStates).catch(() => undefined);
-    setStateId('');
-    setCityId('');
   }, [countryId]);
 
   useEffect(() => {
@@ -134,7 +145,6 @@ export default function OnboardingScreen() {
       return;
     }
     getCities(stateId).then(setCities).catch(() => undefined);
-    setCityId('');
   }, [stateId]);
 
   // Only show sports activated for the chosen city/state (plus unrestricted ones).
@@ -157,7 +167,7 @@ export default function OnboardingScreen() {
         setStateId(p.location?.state?.id ?? '');
         setCityId(p.location?.city?.id ?? '');
         setBio(p.bio ?? '');
-        setCoverUrl(p.coverUrl ?? '');
+        setPhotoUrl(p.photoUrl ?? '');
         setHeightCm(p.heightCm != null ? String(p.heightCm) : '');
         setWeightKg(p.weightKg != null ? String(p.weightKg) : '');
         setPlayingLevel(p.playingLevel ?? '');
@@ -250,7 +260,7 @@ export default function OnboardingScreen() {
           stateId,
           cityId,
           bio: bio || undefined,
-          coverUrl: coverUrl.trim() || undefined,
+          photoUrl: photoUrl.trim() || undefined,
           heightCm: heightCm ? Number(heightCm) : undefined,
           weightKg: weightKg ? Number(weightKg) : undefined,
           playingLevel: playingLevel || undefined,
@@ -345,7 +355,11 @@ export default function OnboardingScreen() {
                 placeholder="Select country"
                 value={countryId}
                 options={countries.map((c) => ({ value: c.id, label: c.name }))}
-                onChange={setCountryId}
+                onChange={(v) => {
+                  setCountryId(v);
+                  setStateId('');
+                  setCityId('');
+                }}
                 icon="location-outline"
               />
               <Select
@@ -353,7 +367,10 @@ export default function OnboardingScreen() {
                 placeholder={countryId ? 'Select state' : 'Select a country first'}
                 value={stateId}
                 options={states.map((s) => ({ value: s.id, label: s.name }))}
-                onChange={setStateId}
+                onChange={(v) => {
+                  setStateId(v);
+                  setCityId('');
+                }}
                 icon="location-outline"
               />
               <Select
@@ -391,12 +408,13 @@ export default function OnboardingScreen() {
                 onChangeText={setBio}
                 maxLength={300}
               />
-              <TextField
-                label="Cover photo URL"
-                placeholder="https://…/your-cover.jpg"
-                value={coverUrl}
-                onChangeText={setCoverUrl}
-                autoCapitalize="none"
+              <ImageUploader
+                label="Profile photo"
+                shape="circle"
+                value={photoUrl || undefined}
+                upload={(img, onProgress) => uploadImage('/profile/me/photo', img, onProgress)}
+                onUploaded={setPhotoUrl}
+                hint="JPEG/PNG/WebP up to 5MB. Add it after saving your details."
               />
               <Select
                 label="Playing level"
@@ -549,31 +567,20 @@ export default function OnboardingScreen() {
           </>
         )}
 
-        {step === 4 && (
-          <>
-            <Text style={styles.title}>Your first achievement</Text>
-            <Text style={styles.subtitle}>
-              Won a medal or tournament? You can add achievements now or later from your profile.
-            </Text>
-            <View style={styles.optionalCard}>
-              <Icon name="trophy-outline" size={28} color={colors.primary} />
-              <Text style={styles.optionalText}>
-                This step is optional — tap Continue to skip and add achievements anytime.
-              </Text>
-            </View>
-          </>
-        )}
+        {step === 4 && <AchievementStep />}
 
         {step === 5 && (
           <>
-            <Text style={styles.title}>Your first video</Text>
+            <Text style={styles.title}>Your signature moment</Text>
             <Text style={styles.subtitle}>
-              Highlight clips make your profile shine. You can upload videos later from your profile.
+              One clip that shows the world who you are as an athlete. Add it now or upload anytime
+              from your profile.
             </Text>
             <View style={styles.optionalCard}>
               <Icon name="image-outline" size={28} color={colors.primary} />
               <Text style={styles.optionalText}>
-                This step is optional — tap Finish to complete your profile and add videos anytime.
+                Optional — tap Finish to complete your profile and add your video whenever you’re
+                ready.
               </Text>
             </View>
           </>
@@ -590,6 +597,174 @@ export default function OnboardingScreen() {
         />
       </View>
     </SafeAreaView>
+  );
+}
+
+/** Step 4: capture the player's best achievement (game, details, photo, share). */
+function AchievementStep() {
+  const [playerSports, setPlayerSports] = useState<{ id: string; name: string }[]>([]);
+  const [playerSportId, setPlayerSportId] = useState('');
+  const [competitionName, setCompetitionName] = useState('');
+  const [year, setYear] = useState(String(currentYear));
+  const [level, setLevel] = useState<CompetitionLevel>('STATE');
+  const [position, setPosition] = useState<Position>('GOLD');
+  const [weightCategory, setWeightCategory] = useState('');
+  const [organizedBy, setOrganizedBy] = useState('');
+  const [postToTimeline, setPostToTimeline] = useState(true);
+  const [picked, setPicked] = useState<PickedImage | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    getMyProfile()
+      .then((p: PlayerProfile) => {
+        const opts = p.playerSports.map((ps) => ({ id: ps.id, name: ps.sport.name }));
+        setPlayerSports(opts);
+        if (opts.length === 1) setPlayerSportId(opts[0].id);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const save = async () => {
+    setErr(null);
+    if (!competitionName.trim()) {
+      setErr('Enter the competition name.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const ach = await createAchievement({
+        playerSportId: playerSportId || undefined,
+        competitionName: competitionName.trim(),
+        year: Number(year) || currentYear,
+        level,
+        position,
+        weightCategory: weightCategory.trim() || undefined,
+        organizedBy: organizedBy.trim() || undefined,
+      });
+      let photoUrl: string | undefined;
+      if (picked) {
+        setProgress(0);
+        photoUrl = await uploadImage(`/achievements/${ach.id}/photo`, picked, setProgress);
+        setProgress(null);
+      }
+      if (postToTimeline) {
+        await createPost(
+          `🏆 ${competitionName.trim()} (${year}) — ${position}`,
+          'ACHIEVEMENT',
+          photoUrl,
+        ).catch(() => undefined);
+      }
+      setSaved(true);
+    } catch (e) {
+      setProgress(null);
+      setErr((e as { message?: string }).message ?? 'Could not save this achievement.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (saved) {
+    return (
+      <>
+        <Text style={styles.title}>Achievement added 🎉</Text>
+        <View style={styles.optionalCard}>
+          <Icon name="trophy-outline" size={28} color={colors.primary} />
+          <Text style={styles.optionalText}>
+            Nice! Tap Continue — add more anytime from your profile.
+          </Text>
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Text style={styles.title}>Add your best achievement</Text>
+      <Text style={styles.subtitle}>Optional — a medal or title you’re proud of.</Text>
+      <View style={styles.fields}>
+        {playerSports.length > 1 && (
+          <Select
+            label="Game"
+            placeholder="Select game"
+            value={playerSportId}
+            options={playerSports.map((p) => ({ value: p.id, label: p.name }))}
+            onChange={setPlayerSportId}
+          />
+        )}
+        <TextField
+          label="Competition name"
+          placeholder="e.g. State Championship"
+          value={competitionName}
+          onChangeText={setCompetitionName}
+        />
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <TextField
+              label="Year"
+              value={year}
+              onChangeText={(v) => setYear(v.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+          <View style={styles.flex}>
+            <Select
+              label="Level"
+              value={level}
+              options={COMPETITION_LEVELS.map((l) => ({ value: l, label: l }))}
+              onChange={(v) => setLevel(v as CompetitionLevel)}
+            />
+          </View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <Select
+              label="Result"
+              value={position}
+              options={POSITIONS.map((p) => ({ value: p, label: p }))}
+              onChange={(v) => setPosition(v as Position)}
+            />
+          </View>
+          <View style={styles.flex}>
+            <TextField
+              label="Weight category"
+              placeholder="e.g. 74kg"
+              value={weightCategory}
+              onChangeText={setWeightCategory}
+            />
+          </View>
+        </View>
+        <TextField
+          label="Organised by"
+          placeholder="e.g. State Sports Board"
+          value={organizedBy}
+          onChangeText={setOrganizedBy}
+        />
+        <ImageUploader
+          label="Photo"
+          buttonLabel={picked ? 'Change' : 'Add photo'}
+          onPick={setPicked}
+        />
+        {progress !== null ? <ProgressBar progress={progress} label="Uploading photo…" /> : null}
+        <Pressable style={styles.checkRow} onPress={() => setPostToTimeline((v) => !v)}>
+          <View style={[styles.checkbox, postToTimeline && styles.checkboxOn]}>
+            {postToTimeline ? <Icon name="checkmark" size={13} color="#fff" /> : null}
+          </View>
+          <Text style={styles.checkText}>Post this to my timeline</Text>
+        </Pressable>
+        {err ? <Text style={styles.error}>{err}</Text> : null}
+        <Pressable style={styles.saveAch} onPress={save} disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveAchText}>Save achievement</Text>
+          )}
+        </Pressable>
+      </View>
+    </>
   );
 }
 
@@ -810,4 +985,24 @@ const styles = StyleSheet.create({
   ahaActions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.lg },
   ahaSecondary: { alignItems: 'center', paddingVertical: spacing.sm },
   ahaSecondaryText: { fontSize: fontSize.md, fontWeight: '700', color: colors.primary },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkText: { fontSize: fontSize.sm, color: colors.text },
+  saveAch: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  saveAchText: { color: '#fff', fontSize: fontSize.md, fontWeight: '800' },
 });
