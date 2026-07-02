@@ -1,4 +1,11 @@
-import { apiRequest } from './client';
+import { apiRequest, apiUpload } from './client';
+
+/** A picked image ready for multipart upload. */
+export interface UploadAsset {
+  uri: string;
+  name: string;
+  type: string;
+}
 
 /** A PROFILE-scope attribute value resolved against its definition. */
 export interface ResolvedAttribute {
@@ -140,4 +147,12 @@ export function setMySkills(
     auth: true,
     body: { skills },
   });
+}
+
+/** Upload (multipart) a profile photo → validated + stored server-side. */
+export function uploadProfilePhoto(asset: UploadAsset): Promise<{ photoUrl: string }> {
+  const fd = new FormData();
+  // React Native's FormData accepts a { uri, name, type } file part.
+  fd.append('photo', asset as unknown as Blob);
+  return apiUpload<{ photoUrl: string }>('/profile/me/photo', fd);
 }

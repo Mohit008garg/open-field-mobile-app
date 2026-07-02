@@ -18,7 +18,7 @@ export type {
   AttributeItem,
   CompleteResult,
 } from './onboarding';
-export { getMyProfile, updateMyProfile, setMySkills } from './profile';
+export { getMyProfile, updateMyProfile, setMySkills, uploadProfilePhoto } from './profile';
 export type {
   PlayerProfile,
   PlayerSport,
@@ -27,6 +27,14 @@ export type {
   ProfileVideo,
   PlayerSkill,
   UpdateProfilePayload,
+  UploadAsset,
 } from './profile';
+export {
+  createAchievement,
+  uploadAchievementPhoto,
+  COMPETITION_LEVELS,
+  POSITIONS,
+} from './achievement';
+export type { CreateAchievementBody, CompetitionLevel, Position } from './achievement';
 export { getFeed, createPost, toggleLike, getHomeStats, getComments, addComment } from './feed';
 export type { Post, PostAuthor, HomeStats, FeedTab, PostComment } from './feed';
