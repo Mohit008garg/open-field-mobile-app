@@ -16,6 +16,7 @@ export type {
   OnboardingSport,
   SaveStepPayload,
   AttributeItem,
+  CompleteResult,
 } from './onboarding';
 export { getMyProfile, updateMyProfile, setMySkills } from './profile';
 export type {

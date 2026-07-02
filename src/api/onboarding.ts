@@ -1,9 +1,16 @@
 import { apiRequest } from './client';
+import type { PlayerProfile } from './profile';
 
 export interface OnboardingProgress {
   currentStep: number;
   completedSteps: number[];
   isCompleted: boolean;
+}
+
+export interface CompleteResult {
+  profile: PlayerProfile;
+  profileUrl: string;
+  whatsappShareLink: string;
 }
 
 export interface AttributeItem {
@@ -42,6 +49,8 @@ export interface SaveStepPayload {
   yearsOfTraining?: number;
   currentAcademy?: string;
   currentCoach?: string;
+  // steps 4 & 5 — skippable
+  skip?: boolean;
 }
 
 export function getOnboardingProgress(): Promise<OnboardingProgress> {
@@ -55,6 +64,6 @@ export function saveOnboardingStep(step: number, payload: SaveStepPayload) {
   );
 }
 
-export function completeOnboarding() {
-  return apiRequest('/onboarding/complete', { method: 'POST', auth: true });
+export function completeOnboarding(): Promise<CompleteResult> {
+  return apiRequest<CompleteResult>('/onboarding/complete', { method: 'POST', auth: true });
 }
