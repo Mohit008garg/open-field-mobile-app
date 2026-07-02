@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -10,15 +9,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   DateField,
   Icon,
+  ImageUploader,
   PrimaryButton,
+  ProgressBar,
   Select,
   SportIcon,
   TextField,
+  type PickedImage,
 } from '@mohit008garg/open-field-common-components';
 import {
   completeOnboarding,
@@ -33,8 +34,6 @@ import {
   getStates,
   saveOnboardingStep,
   setMySkills,
-  uploadAchievementPhoto,
-  uploadProfilePhoto,
   COMPETITION_LEVELS,
   POSITIONS,
   type CityRef,
@@ -46,8 +45,8 @@ import {
   type Sport,
   type SportAttributeDefinition,
   type StateRef,
-  type UploadAsset,
 } from '@/api';
+import { uploadImage } from '@/api/upload';
 import { useProfile } from '@/context/ProfileContext';
 import { colors, fontSize, radius, spacing } from '@/theme';
 
@@ -409,7 +408,14 @@ export default function OnboardingScreen() {
                 onChangeText={setBio}
                 maxLength={300}
               />
-              <ProfilePhotoField value={photoUrl} onUploaded={setPhotoUrl} />
+              <ImageUploader
+                label="Profile photo"
+                shape="circle"
+                value={photoUrl || undefined}
+                upload={(img, onProgress) => uploadImage('/profile/me/photo', img, onProgress)}
+                onUploaded={setPhotoUrl}
+                hint="JPEG/PNG/WebP up to 5MB. Add it after saving your details."
+              />
               <Select
                 label="Playing level"
                 placeholder="Select level"
@@ -594,71 +600,6 @@ export default function OnboardingScreen() {
   );
 }
 
-/** Open the OS image picker and return a multipart-ready asset (or null). */
-async function pickImage(): Promise<UploadAsset | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    quality: 0.85,
-  });
-  if (res.canceled || !res.assets?.length) return null;
-  const a = res.assets[0];
-  return {
-    uri: a.uri,
-    name: a.fileName ?? `photo-${Date.now()}.jpg`,
-    type: a.mimeType ?? 'image/jpeg',
-  };
-}
-
-function ProfilePhotoField({
-  value,
-  onUploaded,
-}: {
-  value: string;
-  onUploaded: (url: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const pick = async () => {
-    setErr(null);
-    const asset = await pickImage();
-    if (!asset) return;
-    setBusy(true);
-    try {
-      const { photoUrl } = await uploadProfilePhoto(asset);
-      onUploaded(photoUrl);
-    } catch (e) {
-      setErr((e as { message?: string }).message ?? 'Upload failed. Save your details first.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <View style={{ gap: spacing.xs }}>
-      <Text style={styles.fieldLabel}>Profile photo</Text>
-      <View style={styles.photoRow}>
-        <View style={styles.photoThumb}>
-          {value ? (
-            <Image source={{ uri: value }} style={styles.photoImg} />
-          ) : (
-            <Icon name="person" size={28} color={colors.textFaint} />
-          )}
-        </View>
-        <Pressable style={styles.photoBtn} onPress={pick} disabled={busy}>
-          {busy ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <Text style={styles.photoBtnText}>{value ? 'Change photo' : 'Upload photo'}</Text>
-          )}
-        </Pressable>
-      </View>
-      <Text style={styles.hint}>JPEG/PNG/WebP up to 5MB. Add it after saving your details.</Text>
-      {err ? <Text style={styles.error}>{err}</Text> : null}
-    </View>
-  );
-}
-
 /** Step 4: capture the player's best achievement (game, details, photo, share). */
 function AchievementStep() {
   const [playerSports, setPlayerSports] = useState<{ id: string; name: string }[]>([]);
@@ -670,7 +611,8 @@ function AchievementStep() {
   const [weightCategory, setWeightCategory] = useState('');
   const [organizedBy, setOrganizedBy] = useState('');
   const [postToTimeline, setPostToTimeline] = useState(true);
-  const [asset, setAsset] = useState<UploadAsset | null>(null);
+  const [picked, setPicked] = useState<PickedImage | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -703,7 +645,11 @@ function AchievementStep() {
         organizedBy: organizedBy.trim() || undefined,
       });
       let photoUrl: string | undefined;
-      if (asset) photoUrl = (await uploadAchievementPhoto(ach.id, asset)).photoUrl;
+      if (picked) {
+        setProgress(0);
+        photoUrl = await uploadImage(`/achievements/${ach.id}/photo`, picked, setProgress);
+        setProgress(null);
+      }
       if (postToTimeline) {
         await createPost(
           `🏆 ${competitionName.trim()} (${year}) — ${position}`,
@@ -713,6 +659,7 @@ function AchievementStep() {
       }
       setSaved(true);
     } catch (e) {
+      setProgress(null);
       setErr((e as { message?: string }).message ?? 'Could not save this achievement.');
     } finally {
       setSaving(false);
@@ -796,21 +743,12 @@ function AchievementStep() {
           value={organizedBy}
           onChangeText={setOrganizedBy}
         />
-        <View style={{ gap: spacing.xs }}>
-          <Text style={styles.fieldLabel}>Photo</Text>
-          <View style={styles.photoRow}>
-            <View style={styles.photoThumb}>
-              {asset ? (
-                <Image source={{ uri: asset.uri }} style={styles.photoImg} />
-              ) : (
-                <Icon name="image-outline" size={26} color={colors.textFaint} />
-              )}
-            </View>
-            <Pressable style={styles.photoBtn} onPress={async () => setAsset((await pickImage()) ?? asset)}>
-              <Text style={styles.photoBtnText}>{asset ? 'Change' : 'Add photo'}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <ImageUploader
+          label="Photo"
+          buttonLabel={picked ? 'Change' : 'Add photo'}
+          onPick={setPicked}
+        />
+        {progress !== null ? <ProgressBar progress={progress} label="Uploading photo…" /> : null}
         <Pressable style={styles.checkRow} onPress={() => setPostToTimeline((v) => !v)}>
           <View style={[styles.checkbox, postToTimeline && styles.checkboxOn]}>
             {postToTimeline ? <Icon name="checkmark" size={13} color="#fff" /> : null}
@@ -1047,29 +985,6 @@ const styles = StyleSheet.create({
   ahaActions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.lg },
   ahaSecondary: { alignItems: 'center', paddingVertical: spacing.sm },
   ahaSecondaryText: { fontSize: fontSize.md, fontWeight: '700', color: colors.primary },
-  fieldLabel: { fontSize: fontSize.sm, fontWeight: '600', color: colors.text },
-  hint: { fontSize: fontSize.xs, color: colors.textMuted },
-  photoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  photoThumb: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  photoImg: { width: '100%', height: '100%' },
-  photoBtn: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  photoBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.primary },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
   checkbox: {
     width: 22,
